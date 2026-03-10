@@ -143,7 +143,9 @@
 
     <div id="movie-detail-modal" class="fixed inset-0 bg-black/80 hidden flex flex-col justify-end z-[200] backdrop-blur-sm transition-all">
         <div class="bg-white rounded-t-[30px] w-full max-h-[95vh] overflow-y-auto animate-up flex flex-col relative pb-8 shadow-2xl">
-            <button onclick="closeDetailModal()" class="absolute top-4 right-4 bg-black/50 backdrop-blur-lg text-white w-8 h-8 rounded-full font-black text-sm z-30 shadow border border-white/30">✕</button>
+            
+            <button type="button" onclick="closeDetailModal(); event.stopPropagation();" class="absolute top-4 right-4 bg-black/50 backdrop-blur-lg text-white w-8 h-8 rounded-full font-black text-sm z-[300] shadow border border-white/30 cursor-pointer active:scale-90">✕</button>
+            
             <div id="detail-header-bg" class="w-full h-48 bg-cover bg-center relative rounded-t-[30px]">
                 <div class="absolute inset-0 bg-black/40 backdrop-blur-sm z-10"></div>
                 <div class="absolute inset-0 bg-gradient-to-t from-white via-white/80 to-transparent z-20"></div>
@@ -215,13 +217,11 @@
         let activeMovieIdForFeedback = null;
         let searchPage = 1;
         let currentSearchMode = 'filters';
-        let currentMediaType = 'movie'; // Nueva variable para controlar si es Película o Serie
+        let currentMediaType = 'movie'; 
 
-        // Listas de géneros separadas según tipo
         const genres_movie = [{id:28,name:"Acción"}, {id:35,name:"Comedia"}, {id:18,name:"Drama"}, {id:27,name:"Terror"}, {id:10749,name:"Romance"}, {id:878,name:"Sci-Fi"}, {id:53,name:"Thriller"}, {id:16,name:"Animación"}];
         const genres_tv = [{id:10759,name:"Acción/Aven"}, {id:35,name:"Comedia"}, {id:18,name:"Drama"}, {id:10765,name:"Sci-Fi/Fant"}, {id:80,name:"Crimen"}, {id:9648,name:"Misterio"}, {id:16,name:"Animación"}];
 
-        // --- MISIONES (Original) ---
         const MISSIONS_DB = [
             { id: 'm1', name: 'Cinéfilo Novato', desc: 'Ve 1 película de cualquier tipo.', target: 1, eval: (vistas) => vistas.length },
             { id: 'm2', name: 'Crítico Exigente', desc: 'Califica 2 películas como "Obra Maestra".', target: 2, eval: (vistas) => vistas.filter(m => m.calificacion.includes('Obra Maestra')).length },
@@ -284,7 +284,6 @@
             } catch(e) { console.log("Historial vacío."); }
         }
 
-        // --- MISIONES LOGICA ORIGINAL ---
         function getMyMissions() {
             const p = profiles.find(x => x.user === currentUser);
             return p && p.missions ? p.missions.split(',').filter(x => x) : [];
@@ -351,7 +350,6 @@
             });
         }
 
-        // --- SISTEMA DE CAMBIO DE MEDIA TIPO (Pelicula o Serie) ---
         function setMediaType(type) {
             currentMediaType = type;
             const mBtn = document.getElementById('type-movie-btn');
@@ -417,7 +415,7 @@
             } else { searchPage++; btnMore.innerText = "Cargando..."; }
 
             let url = ""; const today = getTodayDate();
-            const endPoint = currentMediaType; // 'movie' o 'tv'
+            const endPoint = currentMediaType; 
 
             if(currentSearchMode === 'text') {
                 const query = document.getElementById('search-input').value;
@@ -478,7 +476,8 @@
         }
 
         async function openMovieDetail(movieId, context, type = 'movie') {
-            const modal = document.getElementById('movie-detail-modal'); modal.classList.remove('hidden');
+            const modal = document.getElementById('movie-detail-modal'); 
+            modal.classList.remove('hidden');
             document.getElementById('detail-title').innerText = "Cargando...";
             document.getElementById('detail-director').innerHTML = ""; 
             document.getElementById('detail-producer').innerHTML = ""; 
@@ -487,16 +486,13 @@
             pDiv.innerHTML = "";
 
             try {
-                // Hacemos el fetch dinámico a /movie o /tv
                 const res = await fetch(`https://api.themoviedb.org/3/${type}/${movieId}?api_key=${TMDB_KEY}&language=es-ES&append_to_response=credits,watch/providers`);
                 const det = await res.json();
 
-                // Lógica compartida para Títulos y Fechas
                 const title = det.title || det.name;
                 const originalTitle = det.original_title || det.original_name;
                 const year = det.release_date ? det.release_date.split('-')[0] : (det.first_air_date ? det.first_air_date.split('-')[0] : 'N/A');
                 
-                // Extracción de Creadores y Top 6 Actores
                 const castObjs = det.credits?.cast?.slice(0, 6) || [];
                 const directorObj = type === 'movie' ? det.credits?.crew?.find(c => c.job === 'Director') : det.created_by?.[0];
                 const producerObj = det.credits?.crew?.find(c => c.job === 'Producer' || c.job === 'Executive Producer');
@@ -510,7 +506,6 @@
                 document.getElementById('detail-type-tag').innerText = type === 'movie' ? 'Película' : 'Serie';
                 document.getElementById('detail-overview').innerText = det.overview || "Sinopsis no disponible.";
 
-                // Lógica interactiva con Favoritos para Creador, Productor y Elenco (Top 6)
                 if(directorObj) {
                     const star = checkFav(directorObj.id) ? "⭐" : "☆";
                     document.getElementById('detail-director').innerHTML = `<span class="tag-fav bg-gray-100 px-2 py-1 rounded-lg border border-gray-200 cursor-pointer w-max active:scale-95 flex items-center gap-1" onclick="toggleFav('Director', ${directorObj.id}, '${directorObj.name.replace(/'/g,"")}')"><span id="fav-icon-${directorObj.id}" class="text-[10px]">${star}</span> ${directorObj.name}</span>`;
@@ -526,7 +521,6 @@
                     return `<div class="tag-fav bg-gray-100 px-2 py-1 rounded-lg border border-gray-200 cursor-pointer w-max active:scale-95 flex items-center gap-1" onclick="toggleFav('Actor', ${c.id}, '${c.name.replace(/'/g,"")}')"><span id="fav-icon-${c.id}" class="text-[10px]">${star}</span> ${c.name}</div>`;
                 }).join('');
 
-                // Mostrar plataformas Streaming
                 const providers = det['watch/providers']?.results?.CL?.flatrate || [];
                 if (providers.length > 0) {
                     pDiv.innerHTML = `<p class="text-[8px] font-black uppercase text-purple-400 w-full mb-1">Disponible en</p>` + 
@@ -537,12 +531,10 @@
                     pDiv.innerHTML = `<p class="text-[8px] font-black uppercase text-gray-400 italic">No disponible en streaming (CL)</p>`;
                 }
 
-                // GUARDAMOS DATA EN MEMORIA ORIGINAL + TIPO
                 currentMovieData = { id: det.id, title: title.replace(/'/g, ""), original_title: originalTitle.replace(/'/g, ""), poster: det.poster_path, director: directorObj?.name || "", cast: castObjs.map(c=>c.name).join(','), year: year, type: type };
 
                 const actionsDiv = document.getElementById('detail-actions');
                 
-                // RESTAURACIÓN DE ACCIONES (Original de tu código)
                 if (context === 'explore') {
                     actionsDiv.innerHTML = `
                         <div class="flex gap-2 mb-2">
@@ -573,7 +565,11 @@
             } catch(e) { console.error(e); document.getElementById('detail-title').innerText = "Error."; }
         }
 
-        function closeDetailModal() { document.getElementById('movie-detail-modal').classList.add('hidden'); }
+        // FUNCIÓN DE CIERRE BLINDADA
+        function closeDetailModal() { 
+            const m = document.getElementById('movie-detail-modal');
+            if (m) m.classList.add('hidden'); 
+        }
 
         function getLatestStates() {
             const myInteractions = globalHistory.filter(h => h.usuario === currentUser);
@@ -582,7 +578,6 @@
             return Array.from(latest.values());
         }
 
-        // --- SOLUCIÓN VISUAL: PENDIENTES Y VISTAS ORIGINALES (Sin truncar) ---
         function renderWatchlist() {
             const container = document.getElementById('tab-prioridades');
             const states = getLatestStates();
@@ -594,7 +589,7 @@
             pending.forEach(p => {
                 const posterUrl = p.poster ? `https://image.tmdb.org/t/p/w200${p.poster}` : 'https://via.placeholder.com/200x300?text=Sin+Poster';
                 const orig = p.titulo_original ? `<p class="text-[8px] text-gray-400 font-bold uppercase leading-tight mt-0.5">(${p.titulo_original})</p>` : '';
-                const typeParam = p.tipo_media || 'movie'; // Usar película si el historial es antiguo
+                const typeParam = p.tipo_media || 'movie'; 
                 
                 container.innerHTML += `
                     <div onclick="openMovieDetail(${p.id_tmdb}, 'pending', '${typeParam}')" class="bg-white p-3 rounded-2xl flex gap-3 items-center shadow-sm border border-purple-50 mb-3 cursor-pointer active:scale-[0.98] transition">
@@ -653,7 +648,6 @@
             document.getElementById('fav-movies-container').classList.remove('hidden'); document.getElementById('fav-movies-title').innerText = `Obras de ${personName}`;
             const container = document.getElementById('fav-movies-results'); container.innerHTML = "<p class='text-center p-4 text-xs font-bold text-purple-400 animate-pulse'>Buscando...</p>";
             try {
-                // Buscamos películas y series por persona
                 const res = await fetch(`https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&language=es-ES&sort_by=popularity.desc&with_people=${personId}&primary_release_date.lte=${getTodayDate()}`);
                 const data = await res.json(); container.innerHTML = "";
                 if(data.results.length === 0) { container.innerHTML = "<p class='text-xs text-center text-gray-500'>No hay datos.</p>"; return; }
@@ -665,7 +659,6 @@
         }
         function closeFavMovies() { document.getElementById('fav-movies-container').classList.add('hidden'); }
 
-        // --- SISTEMA ORIGINAL DE GUARDADO ---
         async function changeInteractionState(priority, watchedState) {
             const btn = event.target; btn.innerText = "⏳..."; btn.disabled = true;
             const payload = { 
@@ -673,7 +666,7 @@
                 title: currentMovieData.title, original_title: currentMovieData.original_title, poster: currentMovieData.poster, 
                 director: currentMovieData.director, cast: currentMovieData.cast,
                 year: currentMovieData.year, watched: watchedState, priority: priority, rating: "", comment: "",
-                tipo_media: currentMovieData.type // Añadimos el tipo (tv/movie) para que se guarde en tu Sheet
+                tipo_media: currentMovieData.type 
             };
             await fetch(GAS_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) });
             closeDetailModal(); setTimeout(() => { loadData(); }, 800);
