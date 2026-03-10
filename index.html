@@ -38,7 +38,10 @@
                     <button onclick="openAvatarSelector()" id="main-avatar" class="text-3xl bg-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg active:scale-90 border-2 border-purple-100"></button>
                     <div>
                         <p class="text-[9px] font-black text-purple-400 uppercase tracking-widest">Es tu turno,</p>
-                        <h2 id="welcome" class="text-xl font-black text-purple-900 leading-none"></h2>
+                        <div class="flex items-center gap-2 mt-0.5">
+                            <h2 id="welcome" class="text-xl font-black text-purple-900 leading-none"></h2>
+                            <button onclick="openMatchModal()" class="bg-pink-100 text-pink-600 px-2 py-0.5 rounded text-[9px] font-black shadow-sm active:scale-95 transition border border-pink-200 flex items-center gap-1">💞 MATCH</button>
+                        </div>
                     </div>
                 </div>
                 <div class="flex flex-col items-end gap-1">
@@ -143,7 +146,6 @@
 
     <div id="movie-detail-modal" class="fixed inset-0 bg-black/80 hidden flex flex-col justify-end z-[200] backdrop-blur-sm transition-all">
         <div class="bg-white rounded-t-[30px] w-full max-h-[95vh] overflow-y-auto animate-up flex flex-col relative pb-8 shadow-2xl">
-            
             <button type="button" onclick="closeDetailModal(); event.stopPropagation();" class="absolute top-4 right-4 bg-black/50 backdrop-blur-lg text-white w-8 h-8 rounded-full font-black text-sm z-[300] shadow border border-white/30 cursor-pointer active:scale-90">✕</button>
             
             <div id="detail-header-bg" class="w-full h-48 bg-cover bg-center relative rounded-t-[30px]">
@@ -200,6 +202,33 @@
             <div class="flex gap-2">
                 <button onclick="closeFeedbackModal()" class="py-3 px-4 bg-gray-100 text-gray-600 rounded-xl font-bold text-xs">Cancelar</button>
                 <button onclick="submitFeedback()" class="flex-1 py-3 bg-green-500 text-white rounded-xl font-black shadow-lg shadow-green-200 text-xs">GUARDAR VISTA ✅</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="match-modal" class="fixed inset-0 bg-black/80 hidden flex flex-col justify-end z-[400] backdrop-blur-sm transition-all">
+        <div class="bg-white rounded-t-[30px] w-full max-h-[85vh] overflow-y-auto animate-up flex flex-col relative pb-8 shadow-2xl">
+            <button type="button" onclick="closeMatchModal(); event.stopPropagation();" class="absolute top-4 right-4 bg-black/10 backdrop-blur-md text-gray-800 w-8 h-8 rounded-full font-black text-sm z-[300] shadow-sm border border-gray-200 cursor-pointer active:scale-90">✕</button>
+            
+            <div class="p-6">
+                <h2 id="match-title-text" class="text-2xl font-black text-pink-600 mb-5 flex items-center gap-2 drop-shadow-sm">💞 Match</h2>
+                
+                <div class="space-y-4">
+                    <div class="bg-orange-50/70 p-3 rounded-2xl border border-orange-100 shadow-inner">
+                        <h3 class="font-black text-[10px] text-orange-800 mb-2 uppercase tracking-widest flex items-center gap-1">🔥 Pendientes en común</h3>
+                        <div id="match-pending-list" class="max-h-40 overflow-y-auto pr-1"></div>
+                    </div>
+
+                    <div class="bg-green-50/70 p-3 rounded-2xl border border-green-100 shadow-inner">
+                        <h3 class="font-black text-[10px] text-green-800 mb-2 uppercase tracking-widest flex items-center gap-1">✅ Vistas en común</h3>
+                        <div id="match-watched-list" class="max-h-40 overflow-y-auto pr-1"></div>
+                    </div>
+
+                    <div class="bg-yellow-50/70 p-3 rounded-2xl border border-yellow-100 shadow-inner">
+                        <h3 class="font-black text-[10px] text-yellow-800 mb-2 uppercase tracking-widest flex items-center gap-1">⭐ Favoritos en común</h3>
+                        <div id="match-favs-list" class="grid grid-cols-3 gap-2 mt-2"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -565,7 +594,7 @@
             } catch(e) { console.error(e); document.getElementById('detail-title').innerText = "Error."; }
         }
 
-        // FUNCIÓN DE CIERRE BLINDADA
+        // FUNCION PARA CERRAR EL MODAL
         function closeDetailModal() { 
             const m = document.getElementById('movie-detail-modal');
             if (m) m.classList.add('hidden'); 
@@ -706,6 +735,91 @@
             await fetch(GAS_URL, { method:'POST', mode:'no-cors', headers: { 'Content-Type': 'text/plain' }, body:JSON.stringify(payload)});
             btn.innerText = "GUARDAR VISTA ✅"; btn.disabled = false;
             closeFeedbackModal(); setTimeout(() => { loadData(); showTab('historial'); }, 600);
+        }
+
+        // ====== SISTEMA DE MATCH ======
+        function openMatchModal() {
+            // Buscamos a la otra persona en la lista (solo asume que hay 2 perfiles o te compara con el 1ro que no seas tú)
+            const otherProfile = profiles.find(p => p.user !== currentUser);
+            if(!otherProfile) {
+                alert("Se necesita al menos otro perfil registrado para hacer Match.");
+                return;
+            }
+            const otherUser = otherProfile.user;
+            document.getElementById('match-title-text').innerText = `💞 Match con ${otherUser}`;
+
+            const myStates = getLatestStates();
+            
+            // Construimos los "latest states" de la otra persona
+            const otherInteractions = globalHistory.filter(h => h.usuario === otherUser);
+            const otherLatestMap = new Map();
+            otherInteractions.forEach(h => otherLatestMap.set(h.id_tmdb, h));
+            const otherStates = Array.from(otherLatestMap.values());
+
+            // 1. MATCH DE PENDIENTES
+            const myPending = myStates.filter(s => !isWatched(s.vista_completa));
+            const otherPending = otherStates.filter(s => !isWatched(s.vista_completa));
+            const matchPending = myPending.filter(m => otherPending.some(o => String(o.id_tmdb) === String(m.id_tmdb)));
+
+            // 2. MATCH DE VISTAS
+            const myWatched = myStates.filter(s => isWatched(s.vista_completa));
+            const otherWatched = otherStates.filter(s => isWatched(s.vista_completa));
+            const matchWatched = myWatched.filter(m => otherWatched.some(o => String(o.id_tmdb) === String(m.id_tmdb)));
+
+            // 3. MATCH DE FAVORITOS (Actores, Directores)
+            const myFavs = globalFavorites.filter(f => f.user === currentUser);
+            const otherFavs = globalFavorites.filter(f => f.user === otherUser);
+            const matchFavs = myFavs.filter(m => otherFavs.some(o => String(o.id) === String(m.id)));
+
+            renderMatchList('match-pending-list', matchPending, "Pendientes");
+            renderMatchList('match-watched-list', matchWatched, "Vistas");
+            renderMatchFavs('match-favs-list', matchFavs);
+
+            document.getElementById('match-modal').classList.remove('hidden');
+        }
+
+        function closeMatchModal() {
+            document.getElementById('match-modal').classList.add('hidden');
+        }
+
+        function renderMatchList(containerId, list, type) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = "";
+            if(list.length === 0) {
+                container.innerHTML = `<p class="text-[10px] text-gray-500 italic px-2">No hay coincidencias en ${type}.</p>`;
+                return;
+            }
+            list.forEach(item => {
+                const posterUrl = item.poster ? `https://image.tmdb.org/t/p/w200${item.poster}` : 'https://via.placeholder.com/200x300?text=Sin+Poster';
+                // Al hacer clic abre el detalle normal
+                container.innerHTML += `
+                    <div class="bg-white p-2 rounded-xl flex gap-3 items-center shadow-sm border border-gray-100 mb-2 cursor-pointer active:scale-[0.98]" onclick="openMovieDetail(${item.id_tmdb}, 'history', '${item.tipo_media || 'movie'}')">
+                        <img src="${posterUrl}" class="w-10 h-14 rounded-lg object-cover shadow-sm">
+                        <div class="flex-1">
+                            <p class="font-black text-[11px] text-gray-800 leading-tight">${item.titulo}</p>
+                            <p class="text-[8px] font-bold text-gray-400 mt-0.5">${item.director || 'Desconocido'}</p>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        function renderMatchFavs(containerId, list) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = "";
+            if(list.length === 0) {
+                container.innerHTML = `<div class="col-span-3"><p class="text-[10px] text-gray-500 italic px-2">No hay favoritos en común.</p></div>`;
+                return;
+            }
+            list.forEach(f => {
+                let emoji = '🎭';
+                if(f.tipo === 'Director') emoji = '🎬';
+                if(f.tipo === 'Productor') emoji = '💼';
+                container.innerHTML += `
+                    <div onclick="closeMatchModal(); fetchMoviesByPerson(${f.id}, '${f.nombre.replace(/'/g,"")}')" class="bg-white p-2 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center text-center cursor-pointer active:scale-95">
+                        <div class="text-xl mb-1">${emoji}</div>
+                        <p class="font-black text-[9px] text-gray-800 leading-tight">${f.nombre}</p>
+                    </div>`;
+            });
         }
     </script>
 </body>
