@@ -594,7 +594,6 @@
             } catch(e) { console.error(e); document.getElementById('detail-title').innerText = "Error."; }
         }
 
-        // FUNCION PARA CERRAR EL MODAL
         function closeDetailModal() { 
             const m = document.getElementById('movie-detail-modal');
             if (m) m.classList.add('hidden'); 
@@ -737,39 +736,68 @@
             closeFeedbackModal(); setTimeout(() => { loadData(); showTab('historial'); }, 600);
         }
 
-        // ====== SISTEMA DE MATCH ======
+        // ====== LÓGICA DE MATCH GRUPAL (Múltiples perfiles) ======
+        function getLatestStatesFor(user) {
+            const userInteractions = globalHistory.filter(h => h.usuario === user);
+            const latestMap = new Map();
+            userInteractions.forEach(h => latestMap.set(h.id_tmdb, h));
+            return Array.from(latestMap.values());
+        }
+
         function openMatchModal() {
-            // Buscamos a la otra persona en la lista (solo asume que hay 2 perfiles o te compara con el 1ro que no seas tú)
-            const otherProfile = profiles.find(p => p.user !== currentUser);
-            if(!otherProfile) {
-                alert("Se necesita al menos otro perfil registrado para hacer Match.");
+            const otherProfiles = profiles.filter(p => p.user !== currentUser);
+            if(otherProfiles.length === 0) {
+                alert("Se necesita al menos otro perfil registrado para buscar coincidencias.");
                 return;
             }
-            const otherUser = otherProfile.user;
-            document.getElementById('match-title-text').innerText = `💞 Match con ${otherUser}`;
 
-            const myStates = getLatestStates();
-            
-            // Construimos los "latest states" de la otra persona
-            const otherInteractions = globalHistory.filter(h => h.usuario === otherUser);
-            const otherLatestMap = new Map();
-            otherInteractions.forEach(h => otherLatestMap.set(h.id_tmdb, h));
-            const otherStates = Array.from(otherLatestMap.values());
+            document.getElementById('match-title-text').innerText = `💞 Match con Todos`;
+
+            // Mis estados
+            const myStates = getLatestStatesFor(currentUser);
+            const myPending = myStates.filter(s => !isWatched(s.vista_completa));
+            const myWatched = myStates.filter(s => isWatched(s.vista_completa));
+            const myFavs = globalFavorites.filter(f => f.user === currentUser);
+
+            // Preparar data del resto
+            const otherUsersData = otherProfiles.map(p => ({
+                user: p.user,
+                states: getLatestStatesFor(p.user),
+                favs: globalFavorites.filter(f => f.user === p.user)
+            }));
 
             // 1. MATCH DE PENDIENTES
-            const myPending = myStates.filter(s => !isWatched(s.vista_completa));
-            const otherPending = otherStates.filter(s => !isWatched(s.vista_completa));
-            const matchPending = myPending.filter(m => otherPending.some(o => String(o.id_tmdb) === String(m.id_tmdb)));
+            const matchPending = [];
+            myPending.forEach(m => {
+                const matchedWith = otherUsersData
+                    .filter(ou => ou.states.some(s => !isWatched(s.vista_completa) && String(s.id_tmdb) === String(m.id_tmdb)))
+                    .map(ou => ou.user);
+                if (matchedWith.length > 0) {
+                    matchPending.push({ ...m, matchedWith });
+                }
+            });
 
             // 2. MATCH DE VISTAS
-            const myWatched = myStates.filter(s => isWatched(s.vista_completa));
-            const otherWatched = otherStates.filter(s => isWatched(s.vista_completa));
-            const matchWatched = myWatched.filter(m => otherWatched.some(o => String(o.id_tmdb) === String(m.id_tmdb)));
+            const matchWatched = [];
+            myWatched.forEach(m => {
+                const matchedWith = otherUsersData
+                    .filter(ou => ou.states.some(s => isWatched(s.vista_completa) && String(s.id_tmdb) === String(m.id_tmdb)))
+                    .map(ou => ou.user);
+                if (matchedWith.length > 0) {
+                    matchWatched.push({ ...m, matchedWith });
+                }
+            });
 
-            // 3. MATCH DE FAVORITOS (Actores, Directores)
-            const myFavs = globalFavorites.filter(f => f.user === currentUser);
-            const otherFavs = globalFavorites.filter(f => f.user === otherUser);
-            const matchFavs = myFavs.filter(m => otherFavs.some(o => String(o.id) === String(m.id)));
+            // 3. MATCH DE FAVORITOS
+            const matchFavs = [];
+            myFavs.forEach(m => {
+                const matchedWith = otherUsersData
+                    .filter(ou => ou.favs.some(f => String(f.id) === String(m.id)))
+                    .map(ou => ou.user);
+                if (matchedWith.length > 0) {
+                    matchFavs.push({ ...m, matchedWith });
+                }
+            });
 
             renderMatchList('match-pending-list', matchPending, "Pendientes");
             renderMatchList('match-watched-list', matchWatched, "Vistas");
@@ -791,13 +819,14 @@
             }
             list.forEach(item => {
                 const posterUrl = item.poster ? `https://image.tmdb.org/t/p/w200${item.poster}` : 'https://via.placeholder.com/200x300?text=Sin+Poster';
-                // Al hacer clic abre el detalle normal
+                const matchNames = item.matchedWith.join(', ');
                 container.innerHTML += `
                     <div class="bg-white p-2 rounded-xl flex gap-3 items-center shadow-sm border border-gray-100 mb-2 cursor-pointer active:scale-[0.98]" onclick="openMovieDetail(${item.id_tmdb}, 'history', '${item.tipo_media || 'movie'}')">
                         <img src="${posterUrl}" class="w-10 h-14 rounded-lg object-cover shadow-sm">
                         <div class="flex-1">
                             <p class="font-black text-[11px] text-gray-800 leading-tight">${item.titulo}</p>
                             <p class="text-[8px] font-bold text-gray-400 mt-0.5">${item.director || 'Desconocido'}</p>
+                            <p class="text-[9px] font-black text-pink-500 mt-1 flex items-center gap-1">💞 ${matchNames}</p>
                         </div>
                     </div>`;
             });
@@ -814,10 +843,12 @@
                 let emoji = '🎭';
                 if(f.tipo === 'Director') emoji = '🎬';
                 if(f.tipo === 'Productor') emoji = '💼';
+                const matchNames = f.matchedWith.join(', ');
                 container.innerHTML += `
                     <div onclick="closeMatchModal(); fetchMoviesByPerson(${f.id}, '${f.nombre.replace(/'/g,"")}')" class="bg-white p-2 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center text-center cursor-pointer active:scale-95">
                         <div class="text-xl mb-1">${emoji}</div>
                         <p class="font-black text-[9px] text-gray-800 leading-tight">${f.nombre}</p>
+                        <p class="text-[8px] font-black text-pink-500 mt-1 w-full truncate">💞 ${matchNames}</p>
                     </div>`;
             });
         }
