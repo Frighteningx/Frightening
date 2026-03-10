@@ -444,7 +444,7 @@
             document.getElementById('detail-director').innerHTML = ""; document.getElementById('detail-cast').innerHTML = "";
 
             try {
-                const res = await fetch(`https://api.themoviedb.org/3/movie/${movieId}?api_key=${TMDB_KEY}&language=es-ES&append_to_response=credits`);
+                const res = await fetch(https://api.themoviedb.org/3/movie/${movieId}?api_key=${TMDB_KEY}&language=es-ES&append_to_response=credits,watch/providers);
                 const det = await res.json();
 
                 const directorObj = det.credits.crew.find(c => c.job === 'Director'); const castObjs = det.credits.cast.slice(0, 3);
@@ -470,9 +470,25 @@
 
                 // GUARDAMOS DATA EN MEMORIA (Incluyendo original_title N)
                 currentMovieData = { id: det.id, title: det.title.replace(/'/g, ""), original_title: det.original_title.replace(/'/g, ""), poster: det.poster_path, director: directorObj?.name || "", cast: castObjs.map(c=>c.name).join(','), year: year };
-
-                const actionsDiv = document.getElementById('detail-actions');
+// Creamos el espacio para los logos
+const providersContainer = document.createElement('div');
+providersContainer.id = 'detail-providers';
+providersContainer.className = 'mt-4 flex flex-wrap gap-2 items-center';
+actionsDiv.before(providersContainer); // Lo ponemos antes de los botones
                 
+                const actionsDiv = document.getElementById('detail-actions');
+                // Buscamos si hay plataformas en Chile (CL)
+const providers = det['watch/providers']?.results?.CL?.flatrate || [];
+const pDiv = document.getElementById('detail-providers');
+
+if (providers.length > 0) {
+    pDiv.innerHTML = `<p class="text-[8px] font-black uppercase text-purple-400 w-full mb-1">Disponible en</p>` + 
+    providers.map(p => `
+        <img src="https://image.tmdb.org/t/p/original${p.logo_path}" title="${p.provider_name}" class="w-7 h-7 rounded-lg shadow-sm border border-gray-100">
+    `).join('');
+} else {
+    pDiv.innerHTML = `<p class="text-[8px] font-black uppercase text-gray-400 italic">No disponible en streaming (CL)</p>`;
+}
                 if (context === 'explore') {
                     actionsDiv.innerHTML = `
                         <div class="flex gap-2 mb-2">
@@ -642,6 +658,7 @@
     </script>
 </body>
 </html>
+
 
 
 
