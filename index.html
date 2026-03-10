@@ -100,10 +100,19 @@
 
         <section id="tab-prioridades" class="tab-content hidden space-y-3 animate-up pb-10"></section>
         <section id="tab-historial" class="tab-content hidden space-y-3 animate-up pb-10"></section>
+        
         <section id="tab-favoritos" class="tab-content hidden space-y-3 animate-up pb-10">
             <h3 class="font-black text-sm text-purple-900 pl-2">Mis Favoritos ⭐</h3>
             <div id="fav-list" class="grid grid-cols-3 gap-2 mt-3"></div>
+            <div id="fav-movies-container" class="hidden mt-6 pt-4 border-t-2 border-purple-100">
+                <div class="flex justify-between items-center mb-4 pl-2">
+                    <h4 id="fav-movies-title" class="font-black text-xs text-purple-900"></h4>
+                    <button onclick="closeFavMovies()" class="text-[10px] bg-red-100 text-red-600 px-3 py-1 rounded-lg font-black shadow-sm">CERRAR ✕</button>
+                </div>
+                <div id="fav-movies-results" class="space-y-3"></div>
+            </div>
         </section>
+        
         <section id="tab-misiones" class="tab-content hidden space-y-4 animate-up pb-10"></section>
     </div>
 
@@ -136,15 +145,20 @@
                 <div id="detail-providers" class="mt-4 flex flex-wrap gap-2 items-center"></div>
 
                 <div class="grid grid-cols-2 gap-3 text-xs mt-3">
-                    <div class="bg-white p-3 rounded-xl border border-purple-50 shadow-sm">
-                        <p class="font-black text-purple-400 uppercase text-[8px] mb-1">Creador/Director</p>
+                    <div class="bg-white p-3 rounded-xl border border-purple-50 shadow-sm flex flex-col justify-start">
+                        <p class="font-black text-purple-400 uppercase text-[8px] mb-1">Director / Creador</p>
                         <div id="detail-director" class="font-bold text-gray-800 leading-tight"></div>
                     </div>
-                    <div class="bg-white p-3 rounded-xl border border-purple-50 shadow-sm">
-                        <p class="font-black text-purple-400 uppercase text-[8px] mb-1">Elenco</p>
-                        <div id="detail-cast" class="font-bold text-gray-800 leading-tight"></div>
+                    <div class="bg-white p-3 rounded-xl border border-purple-50 shadow-sm flex flex-col justify-start">
+                        <p class="font-black text-purple-400 uppercase text-[8px] mb-1">Productor</p>
+                        <div id="detail-producer" class="font-bold text-gray-800 leading-tight"></div>
+                    </div>
+                    <div class="col-span-2 bg-white p-3 rounded-xl border border-purple-50 shadow-sm">
+                        <p class="font-black text-purple-400 uppercase text-[8px] mb-1">Elenco Principal (Top 6)</p>
+                        <div id="detail-cast" class="font-bold text-gray-800 leading-tight flex flex-wrap gap-1.5 mt-1"></div>
                     </div>
                 </div>
+                
                 <div id="detail-actions" class="pt-5 space-y-2"></div>
             </div>
         </div>
@@ -192,7 +206,7 @@
         let activeMovieIdForFeedback = null;
         let searchPage = 1;
         let currentSearchMode = 'filters';
-        let currentMediaType = 'movie'; // Nueva variable: 'movie' o 'tv'
+        let currentMediaType = 'movie'; 
 
         const genres_movie = [{id:28,name:"Acción"}, {id:35,name:"Comedia"}, {id:18,name:"Drama"}, {id:27,name:"Terror"}, {id:10749,name:"Romance"}, {id:878,name:"Sci-Fi"}];
         const genres_tv = [{id:10759,name:"Acción/Aven"}, {id:35,name:"Comedia"}, {id:18,name:"Drama"}, {id:10765,name:"Sci-Fi/Fant"}, {id:80,name:"Crimen"}, {id:9648,name:"Misterio"}];
@@ -226,7 +240,6 @@
             await loadData();
         }
 
-        // Cambiar entre Películas y Series
         function setMediaType(type) {
             currentMediaType = type;
             const mBtn = document.getElementById('type-movie-btn');
@@ -313,6 +326,40 @@
             } catch(e) { container.innerHTML = "Error al buscar."; }
         }
 
+        // --- SISTEMA FAVORITOS (Actualizado para el DOM y búsqueda por persona) ---
+        function checkFav(id) { return globalFavorites.some(f => f.user === currentUser && String(f.id) === String(id)); }
+        
+        async function toggleFav(type, id, name) {
+            event.stopPropagation(); const isFav = checkFav(id);
+            // Actualiza visualmente el icono en tiempo real dentro del modal
+            const icon = document.getElementById(`fav-icon-${id}`); 
+            if(icon) icon.innerText = isFav ? "☆" : "⭐";
+
+            if(isFav) globalFavorites = globalFavorites.filter(f => !(f.user === currentUser && String(f.id) === String(id)));
+            else globalFavorites.push({user: currentUser, tipo: type, id: id, nombre: name});
+            
+            await fetch(GAS_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ action: 'toggleFavorite', user: currentUser, tipo: type, id_persona: id, nombre: name }) });
+            renderFavoritesTab();
+        }
+
+        async function fetchMoviesByPerson(personId, personName) {
+            document.getElementById('fav-movies-container').classList.remove('hidden'); 
+            document.getElementById('fav-movies-title').innerText = `Obras de ${personName}`;
+            const container = document.getElementById('fav-movies-results'); 
+            container.innerHTML = "<p class='text-center p-4 text-xs font-bold text-purple-400 animate-pulse'>Buscando...</p>";
+            try {
+                // Buscamos películas relacionadas a esta persona usando su person_id
+                const res = await fetch(`https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&language=es-ES&sort_by=popularity.desc&with_people=${personId}`);
+                const data = await res.json(); container.innerHTML = "";
+                if(data.results.length === 0) { container.innerHTML = "<p class='text-xs text-center text-gray-500'>No se encontraron resultados relevantes.</p>"; return; }
+                data.results.slice(0, 10).forEach(m => {
+                    const posterUrl = m.poster_path ? `https://image.tmdb.org/t/p/w200${m.poster_path}` : 'https://via.placeholder.com/200x300';
+                    container.innerHTML += `<div onclick="openMovieDetail(${m.id}, 'explore', 'movie')" class="bg-white p-3 flex gap-3 animate-up shadow-sm cursor-pointer hover:bg-gray-50 rounded-2xl border border-purple-50"><img src="${posterUrl}" class="w-12 h-16 rounded-md object-cover shadow-sm"><div class="flex-1 flex flex-col justify-center"><h4 class="font-black text-[12px] leading-tight text-gray-800">${m.title}</h4><p class="text-[9px] text-gray-500 font-bold uppercase mt-1">${m.release_date ? m.release_date.split('-')[0] : 'N/A'} • ⭐ ${m.vote_average.toFixed(1)}</p></div></div>`;
+                });
+            } catch(e) { container.innerHTML = "<p class='text-center text-xs text-red-500'>Error.</p>"; }
+        }
+        function closeFavMovies() { document.getElementById('fav-movies-container').classList.add('hidden'); }
+
         async function openMovieDetail(id, context, type) {
             const modal = document.getElementById('movie-detail-modal');
             modal.classList.remove('hidden');
@@ -326,8 +373,11 @@
 
                 const title = det.title || det.name;
                 const year = (det.release_date || det.first_air_date || 'N/A').split('-')[0];
-                const cast = det.credits.cast.slice(0, 3).map(c => c.name).join(', ');
-                const creator = type === 'movie' ? (det.credits.crew.find(c => c.job === 'Director')?.name || 'N/A') : (det.created_by?.[0]?.name || 'N/A');
+                
+                // Extracción top 6 actores, director y productor
+                const castObjs = det.credits.cast.slice(0, 6);
+                let directorObj = type === 'movie' ? det.credits.crew.find(c => c.job === 'Director') : det.created_by?.[0];
+                let producerObj = det.credits.crew.find(c => c.job === 'Producer' || c.job === 'Executive Producer');
 
                 document.getElementById('detail-header-bg').style.backgroundImage = `url(https://image.tmdb.org/t/p/w500${det.backdrop_path})`;
                 document.getElementById('detail-poster-img').src = `https://image.tmdb.org/t/p/w300${det.poster_path}`;
@@ -336,8 +386,24 @@
                 document.getElementById('detail-rating').innerText = `⭐ ${det.vote_average.toFixed(1)}`;
                 document.getElementById('detail-type-tag').innerText = type === 'movie' ? 'Pelicula' : 'Serie';
                 document.getElementById('detail-overview').innerText = det.overview || "Sin sinopsis.";
-                document.getElementById('detail-director').innerText = creator;
-                document.getElementById('detail-cast').innerText = cast;
+
+                // Render Director (con favorito)
+                if(directorObj) {
+                    const star = checkFav(directorObj.id) ? "⭐" : "☆";
+                    document.getElementById('detail-director').innerHTML = `<span class="tag-fav bg-gray-100 px-2 py-1 rounded-lg border border-gray-200 cursor-pointer w-max flex items-center gap-1 active:scale-95" onclick="toggleFav('Director', ${directorObj.id}, '${directorObj.name.replace(/'/g,"")}')"><span id="fav-icon-${directorObj.id}" class="text-[10px]">${star}</span> ${directorObj.name}</span>`;
+                } else { document.getElementById('detail-director').innerText = "Desconocido"; }
+
+                // Render Productor (con favorito)
+                if(producerObj) {
+                    const star = checkFav(producerObj.id) ? "⭐" : "☆";
+                    document.getElementById('detail-producer').innerHTML = `<span class="tag-fav bg-gray-100 px-2 py-1 rounded-lg border border-gray-200 cursor-pointer w-max flex items-center gap-1 active:scale-95" onclick="toggleFav('Productor', ${producerObj.id}, '${producerObj.name.replace(/'/g,"")}')"><span id="fav-icon-${producerObj.id}" class="text-[10px]">${star}</span> ${producerObj.name}</span>`;
+                } else { document.getElementById('detail-producer').innerText = "Desconocido"; }
+
+                // Render Elenco (Top 6 con favoritos)
+                document.getElementById('detail-cast').innerHTML = castObjs.map(c => {
+                    const star = checkFav(c.id) ? "⭐" : "☆";
+                    return `<div class="tag-fav bg-gray-100 px-2 py-1 rounded-lg border border-gray-200 cursor-pointer w-max flex items-center gap-1 active:scale-95" onclick="toggleFav('Actor', ${c.id}, '${c.name.replace(/'/g,"")}')"><span id="fav-icon-${c.id}" class="text-[10px]">${star}</span> ${c.name}</div>`;
+                }).join('');
 
                 // Información específica de series
                 const tvInfo = document.getElementById('detail-tv-info');
@@ -381,13 +447,17 @@
             document.getElementById(`btn-${t}`).classList.add('active');
         }
 
-        // Lógica de carga de datos (Historial, Favoritos, etc.) - Conectada a tu GAS_URL
         async function loadData() {
             try {
                 const res = await fetch(`${GAS_URL}?action=getHistory`);
                 globalHistory = await res.json();
                 renderWatchlist();
                 renderHistoryTab();
+                // Simular cargar favoritos del GAS para test de interfaz si globalFavorites estuviera vacío:
+                const resF = await fetch(`${GAS_URL}?action=getFavorites`);
+                globalFavorites = await resF.json();
+                if(!Array.isArray(globalFavorites)) globalFavorites = []; 
+                renderFavoritesTab();
             } catch(e) { console.log("Carga de datos omitida por falta de conexión activa."); }
         }
 
@@ -427,6 +497,18 @@
                             <span class="text-[9px] font-black bg-gray-100 px-2 py-0.5 rounded">${h.calificacion}</span>
                         </div>
                     </div>`;
+            });
+        }
+
+        function renderFavoritesTab() {
+            const container = document.getElementById('fav-list');
+            const myFavs = globalFavorites.filter(f => f.user === currentUser).reverse();
+            container.innerHTML = "";
+            myFavs.forEach(f => {
+                let emoji = '🎭';
+                if(f.tipo === 'Director') emoji = '🎬';
+                if(f.tipo === 'Productor') emoji = '💼';
+                container.innerHTML += `<div onclick="fetchMoviesByPerson(${f.id}, '${f.nombre.replace(/'/g,"")}')" class="bg-white p-2 rounded-xl shadow-sm border border-purple-100 flex flex-col items-center text-center cursor-pointer active:scale-95 transition"><div class="text-xl mb-1">${emoji}</div><p class="font-black text-[10px] text-purple-900 leading-tight">${f.nombre}</p></div>`;
             });
         }
 
