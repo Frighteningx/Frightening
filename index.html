@@ -49,7 +49,6 @@
                     <button onclick="location.reload()" class="bg-white p-2 rounded-full text-xs shadow-sm active:scale-90 font-bold">🔄</button>
                 </div>
             </div>
-            
             <div id="missions-widget" class="mt-3 space-y-1.5 hidden"></div>
         </header>
 
@@ -251,6 +250,11 @@
 
         // DICCIONARIO MAESTRO DE GÉNEROS
         const ALL_GENRES = {28:"Acción", 12:"Aventura", 16:"Animación", 35:"Comedia", 80:"Crimen", 99:"Documental", 18:"Drama", 10751:"Familiar", 14:"Fantasía", 36:"Historia", 27:"Terror", 10402:"Música", 9648:"Misterio", 10749:"Romance", 878:"Ciencia Ficción", 10770:"TV Movie", 53:"Suspense", 10752:"Guerra", 37:"Western", 10759:"Acción/Aven", 10762:"Kids", 10763:"Noticias", 10764:"Reality", 10765:"Sci-Fi/Fant", 10766:"Soap", 10767:"Talk", 10768:"Político"};
+
+        function getGenreNames(ids) {
+            if(!ids || ids.length === 0) return "";
+            return ids.map(id => ALL_GENRES[id]).filter(Boolean).slice(0, 2).join(', ');
+        }
 
         const genres_movie = [{id:28,name:"Acción"}, {id:35,name:"Comedia"}, {id:18,name:"Drama"}, {id:27,name:"Terror"}, {id:10749,name:"Romance"}, {id:878,name:"Sci-Fi"}, {id:53,name:"Thriller"}, {id:16,name:"Animación"}];
         const genres_tv = [{id:10759,name:"Acción/Aven"}, {id:35,name:"Comedia"}, {id:18,name:"Drama"}, {id:10765,name:"Sci-Fi/Fant"}, {id:80,name:"Crimen"}, {id:9648,name:"Misterio"}, {id:16,name:"Animación"}];
@@ -483,7 +487,7 @@
                     const posterUrl = m.poster_path ? `https://image.tmdb.org/t/p/w200${m.poster_path}` : 'https://via.placeholder.com/200x300?text=Sin+Poster';
                     
                     // Render de Etiquetas de Género en la lista de búsqueda
-                    const genreTags = (m.genre_ids || []).slice(0, 2).map(id => ALL_GENRES[id] ? `<span class="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100 text-[8px] font-black uppercase tracking-wider shadow-sm">${ALL_GENRES[id]}</span>` : '').join('');
+                    const genreTags = (m.genre_ids || []).slice(0, 2).map(id => ALL_GENRES[id] ? `<span class="bg-green-100 text-green-800 px-2 py-0.5 rounded-full border border-green-300 text-[8px] font-black uppercase tracking-wider shadow-sm">${ALL_GENRES[id]}</span>` : '').join('');
 
                     container.innerHTML += `
                         <div onclick="openMovieDetail(${m.id}, 'explore', '${currentMediaType}')" class="glass p-3 flex gap-3 animate-up shadow-sm cursor-pointer hover:bg-white/90 group">
@@ -533,8 +537,8 @@
                 
                 const genresText = det.genres?.slice(0, 3).map(g => g.name).join(', ') || "";
                 
-                // Mostrar etiquetas azules grandes en el modal
-                const genreTags = det.genres?.slice(0, 3).map(g => `<span class="bg-blue-50 text-blue-600 px-2 py-1 rounded border border-blue-100 text-[9px] font-black uppercase tracking-wider shadow-sm">${g.name}</span>`).join('') || "";
+                // Mostrar etiquetas como píldoras grandes en el modal
+                const genreTags = det.genres?.slice(0, 3).map(g => `<span class="bg-green-100 text-green-800 px-2.5 py-1 rounded-full border border-green-300 text-[9px] font-black uppercase tracking-wider shadow-sm">${g.name}</span>`).join('') || "";
                 
                 const castObjs = det.credits?.cast?.slice(0, 6) || [];
                 const directorObj = type === 'movie' ? det.credits?.crew?.find(c => c.job === 'Director') : det.created_by?.[0];
@@ -641,9 +645,8 @@
                 const orig = p.titulo_original ? `<p class="text-[8px] text-gray-400 font-bold uppercase leading-tight mt-0.5">(${p.titulo_original})</p>` : '';
                 const typeParam = p.tipo_media || 'movie'; 
                 
-                // Transformar géneros de string a etiquetas si existen en historial
                 const gList = p.genero ? p.genero.split(', ') : [];
-                const genreTags = gList.map(g => `<span class="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100 text-[8px] font-black uppercase tracking-wider shadow-sm">${g}</span>`).join('');
+                const genreTags = gList.map(g => `<span class="bg-green-100 text-green-800 px-2 py-0.5 rounded-full border border-green-300 text-[8px] font-black uppercase tracking-wider shadow-sm">${g}</span>`).join('');
 
                 container.innerHTML += `
                     <div onclick="openMovieDetail(${p.id_tmdb}, 'pending', '${typeParam}')" class="bg-white p-3 rounded-2xl flex gap-3 items-center shadow-sm border border-purple-50 mb-3 cursor-pointer active:scale-[0.98] transition">
@@ -674,7 +677,7 @@
                 const typeParam = h.tipo_media || 'movie'; 
                 
                 const gList = h.genero ? h.genero.split(', ') : [];
-                const genreTags = gList.map(g => `<span class="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100 text-[8px] font-black uppercase tracking-wider shadow-sm">${g}</span>`).join('');
+                const genreTags = gList.map(g => `<span class="bg-green-100 text-green-800 px-2 py-0.5 rounded-full border border-green-300 text-[8px] font-black uppercase tracking-wider shadow-sm">${g}</span>`).join('');
 
                 container.innerHTML += `
                     <div onclick="openMovieDetail(${h.id_tmdb}, 'history', '${typeParam}')" class="bg-white p-3 rounded-2xl text-xs shadow-sm flex gap-3 mb-3 border border-purple-50 cursor-pointer active:scale-95 transition">
@@ -713,7 +716,7 @@
                 data.results.slice(0, 10).forEach(m => {
                     const posterUrl = m.poster_path ? `https://image.tmdb.org/t/p/w200${m.poster_path}` : 'https://via.placeholder.com/200x300?text=Sin+Poster';
                     
-                    const genreTags = (m.genre_ids || []).slice(0, 2).map(id => ALL_GENRES[id] ? `<span class="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100 text-[8px] font-black uppercase tracking-wider shadow-sm">${ALL_GENRES[id]}</span>` : '').join('');
+                    const genreTags = (m.genre_ids || []).slice(0, 2).map(id => ALL_GENRES[id] ? `<span class="bg-green-100 text-green-800 px-2 py-0.5 rounded-full border border-green-300 text-[8px] font-black uppercase tracking-wider shadow-sm">${ALL_GENRES[id]}</span>` : '').join('');
                     
                     container.innerHTML += `<div onclick="openMovieDetail(${m.id}, 'explore', 'movie')" class="bg-white p-3 flex gap-3 animate-up shadow-sm cursor-pointer hover:bg-gray-50 rounded-2xl border border-purple-50"><img src="${posterUrl}" class="w-12 h-16 rounded-md object-cover shadow-sm"><div class="flex-1 flex flex-col justify-center"><h4 class="font-black text-[12px] leading-tight text-gray-800">${m.title}</h4><div class="flex flex-wrap gap-1 my-1">${genreTags}</div><p class="text-[9px] text-gray-500 font-bold uppercase mt-1">${m.release_date ? m.release_date.split('-')[0] : 'N/A'} • ⭐ ${m.vote_average.toFixed(1)}</p></div></div>`;
                 });
@@ -853,7 +856,7 @@
                 const matchNames = item.matchedWith.join(', ');
                 
                 const gList = item.genero ? item.genero.split(', ') : [];
-                const genreTags = gList.map(g => `<span class="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100 text-[8px] font-black uppercase tracking-wider shadow-sm">${g}</span>`).join('');
+                const genreTags = gList.map(g => `<span class="bg-green-100 text-green-800 px-2 py-0.5 rounded-full border border-green-300 text-[8px] font-black uppercase tracking-wider shadow-sm">${g}</span>`).join('');
                 
                 container.innerHTML += `
                     <div class="bg-white p-2 rounded-xl flex gap-3 items-center shadow-sm border border-gray-100 mb-2 cursor-pointer active:scale-[0.98]" onclick="openMovieDetail(${item.id_tmdb}, 'history', '${item.tipo_media || 'movie'}')">
