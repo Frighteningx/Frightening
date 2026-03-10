@@ -477,8 +477,6 @@
             renderFavoritesTab();
         }
 
-        // ====== AQUÍ ESTÁ LA MAGIA PARA QUE ABRA TODO SIN ROMPER ======
-        // Agregamos 'type = movie' para que la llamada de las pelis antiguas nunca falle.
         async function openMovieDetail(movieId, context, type = 'movie') {
             const modal = document.getElementById('movie-detail-modal'); modal.classList.remove('hidden');
             document.getElementById('detail-title').innerText = "Cargando...";
@@ -535,6 +533,8 @@
                     providers.map(p => `
                         <img src="https://image.tmdb.org/t/p/original${p.logo_path}" title="${p.provider_name}" class="w-7 h-7 rounded-lg shadow-sm border border-gray-100">
                     `).join('');
+                } else {
+                    pDiv.innerHTML = `<p class="text-[8px] font-black uppercase text-gray-400 italic">No disponible en streaming (CL)</p>`;
                 }
 
                 // GUARDAMOS DATA EN MEMORIA ORIGINAL + TIPO
