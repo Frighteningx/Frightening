@@ -167,8 +167,7 @@
                         <p class="font-black text-purple-400 uppercase text-[8px] mb-1">Elenco Principal</p>
                         <div id="detail-cast" class="font-bold text-gray-800 leading-tight space-y-1"></div>
                     </div>
-                </div> <div id="detail-providers" class="mt-4 flex flex-wrap gap-2 items-center">
-    </div>
+                </div> 
                 < div id="detail-actions" class="pt-5 space-y-2"></div>
             </div>
         </div>
@@ -477,6 +476,13 @@ providersContainer.className = 'mt-4 flex flex-wrap gap-2 items-center';
 actionsDiv.before(providersContainer); // Lo ponemos antes de los botones
                 
                 const actionsDiv = document.getElementById('detail-actions');
+                // PUNTO 1: Creamos el espacio vacío (contenedor) para los logos
+const providersContainer = document.createElement('div');
+providersContainer.id = 'detail-providers';
+providersContainer.className = 'mt-4 flex flex-wrap gap-2 items-center';
+
+// Esto lo coloca visualmente arriba de los botones de acción
+actionsDiv.before(providersContainer);
                 // Buscamos si hay plataformas en Chile (CL)
 const providers = det['watch/providers']?.results?.CL?.flatrate || [];
 const pDiv = document.getElementById('detail-providers');
@@ -658,6 +664,7 @@ if (providers.length > 0) {
     </script>
 </body>
 </html>
+
 
 
 
