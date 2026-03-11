@@ -148,13 +148,13 @@
         <div class="bg-white rounded-t-[30px] w-full max-h-[95vh] overflow-y-auto animate-up flex flex-col relative pb-8 shadow-2xl">
             <button type="button" onclick="closeDetailModal(); event.stopPropagation();" class="absolute top-4 right-4 bg-black/50 backdrop-blur-lg text-white w-8 h-8 rounded-full font-black text-sm z-[300] shadow border border-white/30 cursor-pointer active:scale-90">✕</button>
             
-            <div id="detail-header-bg" class="w-full h-48 bg-cover bg-center relative rounded-t-[30px]">
+            <div id="detail-header-bg" class="w-full h-48 min-h-[12rem] shrink-0 bg-cover bg-center relative rounded-t-[30px]">
                 <div class="absolute inset-0 bg-black/40 backdrop-blur-sm z-10"></div>
                 <div class="absolute inset-0 bg-gradient-to-t from-white via-white/80 to-transparent z-20"></div>
             </div>
             <div class="px-5 -mt-20 relative z-30">
                 <div class="flex gap-4 items-end mb-4">
-                    <img id="detail-poster-img" src="" class="w-24 rounded-xl shadow-xl border-2 border-white object-cover bg-gray-200">
+                    <img id="detail-poster-img" src="" class="w-24 h-36 shrink-0 rounded-xl shadow-xl border-2 border-white object-cover bg-gray-200">
                     <div class="pb-1">
                         <h2 id="detail-title" class="text-xl font-black text-gray-900 leading-tight"></h2>
                         <div class="flex flex-wrap gap-1 mt-1.5">
@@ -249,6 +249,7 @@
         let currentSearchMode = 'filters';
         let currentMediaType = 'movie'; 
 
+        // DICCIONARIO MAESTRO DE GÉNEROS
         const ALL_GENRES = {28:"Acción", 12:"Aventura", 16:"Animación", 35:"Comedia", 80:"Crimen", 99:"Documental", 18:"Drama", 10751:"Familiar", 14:"Fantasía", 36:"Historia", 27:"Terror", 10402:"Música", 9648:"Misterio", 10749:"Romance", 878:"Ciencia Ficción", 10770:"TV Movie", 53:"Suspense", 10752:"Guerra", 37:"Western", 10759:"Acción/Aven", 10762:"Kids", 10763:"Noticias", 10764:"Reality", 10765:"Sci-Fi/Fant", 10766:"Soap", 10767:"Talk", 10768:"Político"};
 
         function getGenreNames(ids) {
@@ -537,7 +538,6 @@
 
                 const norm = s => s ? String(s).replace(/[^a-zA-Z0-9]/g, '').toLowerCase() : '';
                 
-                // SISTEMA DE CORRECCIÓN: Si falla la búsqueda o el título deducido no concuerda
                 if (det.success === false || (expectedTitle && title && norm(expectedTitle) !== norm(title))) {
                     const altType = type === 'movie' ? 'tv' : 'movie';
                     const altRes = await fetch(`https://api.themoviedb.org/3/${altType}/${movieId}?api_key=${TMDB_KEY}&language=es-ES&append_to_response=credits,watch/providers`);
@@ -667,7 +667,6 @@
                 const gList = p.genero ? String(p.genero).split(', ') : [];
                 const genreTags = gList.filter(Boolean).map(g => `<span class="bg-green-100 text-green-800 px-2 py-0.5 rounded-full border border-green-300 text-[8px] font-black uppercase tracking-wider shadow-sm">${g}</span>`).join('');
                 
-                // Extraemos ID de forma blindada y omitimos texto interpolado en onclick para no romper HTML
                 container.innerHTML += `
                     <div onclick="openMovieDetail(${p.id_tmdb}, 'pending', '${typeParam}')" class="bg-white p-3 rounded-2xl flex gap-3 items-center shadow-sm border border-purple-50 mb-3 cursor-pointer active:scale-[0.98] transition">
                         <img src="${posterUrl}" class="w-14 h-20 rounded-lg object-cover shadow-sm border border-gray-100">
@@ -769,7 +768,6 @@
         function openFeedbackModal(id) {
             event.stopPropagation(); closeDetailModal(); 
             activeMovieIdForFeedback = id; 
-            // Buscamos el titulo en el objeto abierto o en el historial
             let fallbackTitle = currentMovieData?.title || "Película/Serie";
             if (!currentMovieData || String(currentMovieData.id) !== String(id)) {
                 let existing = globalHistory.find(h => String(h.id_tmdb) === String(id));
